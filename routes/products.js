@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Product } from '../models/Product.js';
+import { Category } from '../models/Category.js';
 
 const router = Router();
 
@@ -18,11 +19,20 @@ router.get('/', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 12));
     const category = req.query.category;
+    const navGroup = (req.query.navGroup || '').trim();
+    const exclude = (req.query.exclude || '').trim();
     const q = (req.query.q || '').trim();
     const sort = req.query.sort || '';
 
     const filter = {};
     if (category) filter.categoryId = new mongoose.Types.ObjectId(category);
+    if (navGroup) {
+      const categoryIds = await Category.find({ navGroup }).select('_id').lean();
+      const ids = categoryIds.map((c) => c._id);
+      if (ids.length > 0) filter.categoryId = { $in: ids };
+      else filter.categoryId = null;
+    }
+    if (exclude) filter.slug = { $ne: exclude };
     if (q) filter.$text = { $search: q };
 
     let query = Product.find(filter);
