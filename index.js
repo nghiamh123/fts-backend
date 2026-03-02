@@ -12,6 +12,11 @@ import adminCategories from "./routes/admin/categories.js";
 import adminProducts from "./routes/admin/products.js";
 import adminAuth from "./routes/admin/auth.js";
 import adminUpload from "./routes/admin/upload.js";
+import adminAuthors from "./routes/admin/authors.js";
+import adminBlogCategories from "./routes/admin/blog-categories.js";
+import adminBlogs from "./routes/admin/blogs.js";
+import adminTags from "./routes/admin/tags.js";
+import blogs from "./routes/blogs.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -30,6 +35,11 @@ app.use("/admin/auth", adminAuth);
 app.use("/admin/categories", adminCategories);
 app.use("/admin/products", adminProducts);
 app.use("/admin/upload", adminUpload);
+app.use("/admin/authors", adminAuthors);
+app.use("/admin/blog-categories", adminBlogCategories);
+app.use("/admin/blogs", adminBlogs);
+app.use("/admin/tags", adminTags);
+app.use("/blogs", blogs);
 app.use("/admin", express.static("admin"));
 
 app.get("/health", (req, res) => res.json({ ok: true }));

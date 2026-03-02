@@ -62,7 +62,12 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     const ext = getExtension(req.file.mimetype);
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-    const key = `${R2_DIRECTORY}/${filename}`;
+
+    // Check if the query asks for a specific folder: ?folder=blogs
+    const folder = req.query.folder
+      ? req.query.folder.replace(/[^a-zA-Z0-9_-]/g, "")
+      : R2_DIRECTORY;
+    const key = `${folder}/${filename}`;
 
     await r2Client.send(
       new PutObjectCommand({
@@ -70,13 +75,14 @@ router.post("/", upload.single("file"), async (req, res) => {
         Key: key,
         Body: req.file.buffer,
         ContentType: req.file.mimetype,
-      })
+      }),
     );
 
     const url = getPublicUrl(key);
     if (!url) {
       return res.status(500).json({
-        message: "CLOUDFLARE_R2_PUBLIC_URL chưa cấu hình, không tạo được URL ảnh",
+        message:
+          "CLOUDFLARE_R2_PUBLIC_URL chưa cấu hình, không tạo được URL ảnh",
       });
     }
 
