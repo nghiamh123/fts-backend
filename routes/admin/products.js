@@ -36,6 +36,7 @@ router.post("/", async (req, res) => {
       colors,
       templateId,
       order,
+      preOrder,
     } = body;
     if (!slug || !name || price == null) {
       return res
@@ -60,6 +61,7 @@ router.post("/", async (req, res) => {
         ? new mongoose.Types.ObjectId(templateId)
         : undefined,
       order: Number(order) || 0,
+      preOrder: preOrder === true,
     });
     const populated = await Product.findById(product._id)
       .populate("categoryId")
@@ -140,6 +142,7 @@ router.put("/:id", async (req, res) => {
         ? new mongoose.Types.ObjectId(body.templateId)
         : null;
     if (body.order !== undefined) updates.order = Number(body.order) || 0;
+    if (body.preOrder !== undefined) updates.preOrder = body.preOrder === true;
 
     const product = await Product.findByIdAndUpdate(req.params.id, updates, {
       new: true,

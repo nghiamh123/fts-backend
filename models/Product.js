@@ -15,6 +15,7 @@ const schema = new mongoose.Schema(
       ref: "ProductTemplate",
     },
     inStock: { type: Boolean, default: true },
+    preOrder: { type: Boolean, default: false },
     stockQuantity: { type: Number, default: 0 },
     sizes: { type: [String], default: [] },
     colors: { type: [String], default: [] },

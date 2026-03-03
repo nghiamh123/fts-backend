@@ -27,6 +27,7 @@ router.get("/", async (req, res) => {
     const exclude = (req.query.exclude || "").trim();
     const q = (req.query.q || "").trim();
     const sort = req.query.sort || "";
+    const preOrder = req.query.preOrder;
 
     const filter = {};
     if (category) filter.categoryId = new mongoose.Types.ObjectId(category);
@@ -40,6 +41,8 @@ router.get("/", async (req, res) => {
     }
     if (exclude) filter.slug = { $ne: exclude };
     if (q) filter.$text = { $search: q };
+    if (preOrder === "true") filter.preOrder = true;
+    else if (preOrder === "false") filter.preOrder = false;
 
     let query = Product.find(filter);
     if (sort === "price_asc") query = query.sort({ price: 1 });

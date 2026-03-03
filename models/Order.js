@@ -1,16 +1,21 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const orderItemSchema = new mongoose.Schema(
   {
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
     name: { type: String, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
     size: String,
     color: String,
     image: String,
+    preOrder: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const shippingAddressSchema = new mongoose.Schema(
@@ -22,7 +27,7 @@ const shippingAddressSchema = new mongoose.Schema(
     district: String,
     ward: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const schema = new mongoose.Schema(
@@ -34,14 +39,14 @@ const schema = new mongoose.Schema(
     shippingAddress: { type: shippingAddressSchema, required: true },
     subtotal: { type: Number, default: 0 },
     shippingFee: { type: Number, default: 0 },
-    status: { type: String, default: 'pending' },
+    status: { type: String, default: "pending" },
     note: String,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 schema.index({ orderNumber: 1 });
 schema.index({ userId: 1 });
 schema.index({ email: 1 });
 
-export const Order = mongoose.model('Order', schema);
+export const Order = mongoose.model("Order", schema);
