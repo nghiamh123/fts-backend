@@ -1,4 +1,14 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import crypto from "crypto";
+
+function generateReferralCode(fullName) {
+  const prefix = fullName
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .substring(0, 5)
+    .toUpperCase();
+  const suffix = crypto.randomInt(1000, 9999);
+  return `${prefix}${suffix}`;
+}
 
 const schema = new mongoose.Schema(
   {
@@ -6,9 +16,27 @@ const schema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     fullName: { type: String, required: true },
     phone: String,
-    role: { type: String, default: 'customer' },
+    role: { type: String, default: "customer" },
+    referralCode: { type: String, unique: true, sparse: true },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    affiliateId: { type: mongoose.Schema.Types.ObjectId, ref: "Affiliate" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const User = mongoose.model('User', schema);
+schema.index({ referralCode: 1 });
+
+// Auto-generate referralCode before save if not set
+schema.pre("save", async function (next) {
+  if (this.referralCode) return next();
+  let code;
+  let exists = true;
+  while (exists) {
+    code = generateReferralCode(this.fullName);
+    exists = await mongoose.model("User").findOne({ referralCode: code });
+  }
+  this.referralCode = code;
+  next();
+});
+
+export const User = mongoose.model("User", schema);

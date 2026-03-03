@@ -1,31 +1,89 @@
-import { Router } from 'express';
-import { Order } from '../models/Order.js';
+import { Router } from "express";
+import { Order } from "../models/Order.js";
+import { User } from "../models/User.js";
+import { Affiliate } from "../models/Affiliate.js";
+import { AffiliateCommission } from "../models/AffiliateCommission.js";
+import { ReferralUsage } from "../models/ReferralUsage.js";
+import { ReferralConfig } from "../models/ReferralConfig.js";
+import { WalletTransaction } from "../models/WalletTransaction.js";
 
 const router = Router();
 
 async function getNextOrderNumber() {
-  const last = await Order.findOne().sort({ createdAt: -1 }).select('orderNumber').lean();
-  const num = last?.orderNumber ? parseInt(last.orderNumber.replace(/\D/g, ''), 10) + 1 : 1;
-  return `SW${String(num).padStart(6, '0')}`;
+  const last = await Order.findOne()
+    .sort({ createdAt: -1 })
+    .select("orderNumber")
+    .lean();
+  const num = last?.orderNumber
+    ? parseInt(last.orderNumber.replace(/\D/g, ""), 10) + 1
+    : 1;
+  return `SW${String(num).padStart(6, "0")}`;
 }
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const { email, items, shippingAddress, note } = req.body || {};
+    const {
+      email,
+      items,
+      shippingAddress,
+      note,
+      referralCode,
+      affiliateRef,
+      userId,
+    } = req.body || {};
     if (!email || !Array.isArray(items) || !items.length || !shippingAddress) {
-      return res.status(400).json({ message: 'email, items and shippingAddress are required' });
+      return res
+        .status(400)
+        .json({ message: "email, items and shippingAddress are required" });
     }
     const { fullName, phone, address, city, district, ward } = shippingAddress;
     if (!fullName || !phone || !address) {
-      return res.status(400).json({ message: 'shippingAddress must have fullName, phone, address' });
+      return res
+        .status(400)
+        .json({
+          message: "shippingAddress must have fullName, phone, address",
+        });
     }
 
-    const subtotal = items.reduce((sum, i) => sum + (i.price || 0) * (i.quantity || 0), 0);
+    let subtotal = items.reduce(
+      (sum, i) => sum + (i.price || 0) * (i.quantity || 0),
+      0,
+    );
+    let discount = 0;
+
+    // ── Referral Code Discount ──────────────────────────────────────────
+    if (referralCode && userId) {
+      const config = await ReferralConfig.getConfig();
+      if (config.isActive) {
+        const referrer = await User.findOne({
+          referralCode: referralCode.toUpperCase(),
+        });
+
+        // Prevent self-referral
+        if (referrer && referrer._id.toString() !== userId) {
+          // Check if this user already used a referral code
+          const alreadyUsed = await ReferralUsage.findOne({
+            usedByUserId: userId,
+          });
+          if (!alreadyUsed && subtotal >= config.minOrderAmount) {
+            if (config.discountType === "percent") {
+              discount = Math.round(subtotal * (config.discountValue / 100));
+            } else {
+              discount = config.discountValue;
+            }
+            discount = Math.min(discount, subtotal); // never exceed subtotal
+          }
+        }
+      }
+    }
+
+    subtotal = subtotal - discount;
     const shippingFee = subtotal >= 500000 ? 0 : 30000;
     const orderNumber = await getNextOrderNumber();
 
     const order = await Order.create({
       orderNumber,
+      userId: userId || undefined,
       email,
       items,
       shippingAddress: { fullName, phone, address, city, district, ward },
@@ -33,15 +91,77 @@ router.post('/', async (req, res) => {
       shippingFee,
       note: note || undefined,
     });
-    res.status(201).json(order);
+
+    // ── Record Referral Usage ───────────────────────────────────────────
+    if (discount > 0 && referralCode && userId) {
+      const referrer = await User.findOne({
+        referralCode: referralCode.toUpperCase(),
+      });
+      if (referrer) {
+        await ReferralUsage.create({
+          referralCode: referralCode.toUpperCase(),
+          referrerUserId: referrer._id,
+          usedByUserId: userId,
+          discountAmount: discount,
+          discountType: (await ReferralConfig.getConfig()).discountType,
+          orderId: order._id,
+        });
+      }
+    }
+
+    // ── Affiliate Commission Tracking ───────────────────────────────────
+    if (affiliateRef) {
+      const affiliate = await Affiliate.findOne({
+        _id: affiliateRef,
+        status: "active",
+      });
+      if (affiliate) {
+        // Prevent self-commission: affiliate user cannot earn from own orders
+        if (!userId || affiliate.userId.toString() !== userId) {
+          const commissionAmount = Math.round(
+            (subtotal + discount) * (affiliate.commissionRate / 100),
+          );
+
+          const commission = await AffiliateCommission.create({
+            affiliateId: affiliate._id,
+            orderId: order._id,
+            orderNumber,
+            amount: commissionAmount,
+            rate: affiliate.commissionRate,
+            status: "pending",
+          });
+
+          // Update affiliate pending balance and stats
+          await Affiliate.findByIdAndUpdate(affiliate._id, {
+            $inc: {
+              pendingBalance: commissionAmount,
+              totalEarned: commissionAmount,
+              totalOrders: 1,
+              totalReferrals: 1,
+            },
+          });
+
+          // Record wallet transaction
+          await WalletTransaction.create({
+            affiliateId: affiliate._id,
+            amount: commissionAmount,
+            type: "commission",
+            status: "pending",
+            note: `Commission for order ${orderNumber}`,
+          });
+        }
+      }
+    }
+
+    res.status(201).json({ ...order.toObject(), discount });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.get('/my', async (req, res) => {
+router.get("/my", async (req, res) => {
   try {
-    const email = req.query.email || '';
+    const email = req.query.email || "";
     const list = await Order.find({ email }).sort({ createdAt: -1 }).lean();
     res.json(list);
   } catch (err) {
@@ -49,10 +169,12 @@ router.get('/my', async (req, res) => {
   }
 });
 
-router.get('/:orderNumber', async (req, res) => {
+router.get("/:orderNumber", async (req, res) => {
   try {
-    const order = await Order.findOne({ orderNumber: req.params.orderNumber }).lean();
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    const order = await Order.findOne({
+      orderNumber: req.params.orderNumber,
+    }).lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
     res.json(order);
   } catch (err) {
     res.status(500).json({ message: err.message });

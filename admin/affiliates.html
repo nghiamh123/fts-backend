@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin – Quản lý Đối tác</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        background: #0a0a0a;
+        color: #fafafa;
+        padding: 1rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        font-size: 1.2rem;
+        margin-top: 2rem;
+      }
+      a {
+        color: #eab308;
+      }
+      .card {
+        background: #141414;
+        border: 1px solid #262626;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #262626;
+        background: #1a1a1a;
+        color: #fafafa;
+        font-size: 0.9rem;
+      }
+      button {
+        cursor: pointer;
+        background: #eab308;
+        color: #0a0a0a;
+        border: none;
+        font-weight: 600;
+      }
+      button.danger {
+        background: #dc2626;
+        color: #fff;
+      }
+      button.success {
+        background: #22c55e;
+        color: #fff;
+      }
+      button.secondary {
+        background: #262626;
+        color: #fafafa;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      th,
+      td {
+        padding: 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid #262626;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+      .badge-pending {
+        background: rgba(234, 179, 8, 0.15);
+        color: #eab308;
+      }
+      .badge-active {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .badge-suspended {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+      .badge-completed {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .badge-rejected {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+      .hidden {
+        display: none;
+      }
+      .nav {
+        margin-bottom: 1.5rem;
+      }
+      .nav a {
+        margin-right: 1rem;
+      }
+      .filter {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .actions {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+      .msg {
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+      }
+      .msg-ok {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .msg-err {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/admin/">← Trang chủ Admin</a> |
+      <a href="/admin/affiliates.html">Đối tác</a> |
+      <a href="/admin/referrals.html">Giới thiệu</a>
+    </div>
+
+    <h1>Quản lý Đối tác Liên kết</h1>
+    <div id="msg"></div>
+
+    <!-- Filters -->
+    <div class="filter">
+      <label>Lọc:</label>
+      <select id="statusFilter">
+        <option value="">Tất cả</option>
+        <option value="pending">Chờ duyệt</option>
+        <option value="active">Đang hoạt động</option>
+        <option value="suspended">Đã ngừng</option>
+      </select>
+      <button type="button" onclick="loadAffiliates()">Lọc</button>
+    </div>
+
+    <!-- Affiliate List -->
+    <div class="card">
+      <table id="affiliateTable">
+        <thead>
+          <tr>
+            <th>Tên</th>
+            <th>Email</th>
+            <th>SĐT</th>
+            <th>Hoa&nbsp;hồng&nbsp;%</th>
+            <th>Ví</th>
+            <th>Chờ</th>
+            <th>Tổng</th>
+            <th>Trạng thái</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="affiliateBody"></tbody>
+      </table>
+      <div id="affPagination" style="margin-top: 0.75rem"></div>
+    </div>
+
+    <!-- Withdrawals -->
+    <h2>Yêu cầu rút tiền</h2>
+    <div class="filter">
+      <label>Lọc:</label>
+      <select id="wdStatusFilter">
+        <option value="">Tất cả</option>
+        <option value="pending">Chờ duyệt</option>
+        <option value="completed">Đã hoàn thành</option>
+        <option value="rejected">Từ chối</option>
+      </select>
+      <button type="button" onclick="loadWithdrawals()">Lọc</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Đối tác</th>
+            <th>Số tiền</th>
+            <th>Trạng thái</th>
+            <th>Ngày</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="wdBody"></tbody>
+      </table>
+      <div id="wdPagination" style="margin-top: 0.75rem"></div>
+    </div>
+
+    <!-- Commissions -->
+    <h2>Tất cả Hoa hồng</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Đối tác</th>
+            <th>Mã đơn</th>
+            <th>Tỷ lệ</th>
+            <th>Số tiền</th>
+            <th>Trạng thái</th>
+            <th>Ngày</th>
+          </tr>
+        </thead>
+        <tbody id="commBody"></tbody>
+      </table>
+      <div id="commPagination" style="margin-top: 0.75rem"></div>
+    </div>
+
+    <script>
+      const API = window.location.origin;
+      const KEY = "streetwear_admin_key";
+      function getKey() {
+        return sessionStorage.getItem(KEY);
+      }
+      function h() {
+        return { "Content-Type": "application/json", "x-admin-key": getKey() };
+      }
+      function fmt(n) {
+        return new Intl.NumberFormat("vi-VN").format(n) + "đ";
+      }
+      function badge(s) {
+        const m = {
+          pending: "Chờ duyệt",
+          active: "Hoạt động",
+          suspended: "Ngừng",
+          completed: "Hoàn thành",
+          rejected: "Từ chối",
+          approved: "Đã duyệt",
+          paid: "Đã trả",
+        };
+        return `<span class="badge badge-${s}">${m[s] || s}</span>`;
+      }
+      function showMsg(text, ok) {
+        const el = document.getElementById("msg");
+        el.innerHTML = `<div class="msg ${ok ? "msg-ok" : "msg-err"}">${text}</div>`;
+        setTimeout(() => (el.innerHTML = ""), 4000);
+      }
+
+      // ── Affiliates ──
+      let affPage = 1;
+      async function loadAffiliates(page) {
+        if (page) affPage = page;
+        const status = document.getElementById("statusFilter").value;
+        const qs = `page=${affPage}&limit=15${status ? "&status=" + status : ""}`;
+        const r = await fetch(`${API}/admin/affiliates?${qs}`, {
+          headers: h(),
+        });
+        const d = await r.json();
+        const body = document.getElementById("affiliateBody");
+        body.innerHTML = d.items
+          .map((a) => {
+            const u = a.userId || {};
+            return `<tr>
+          <td>${u.fullName || "—"}</td>
+          <td>${u.email || "—"}</td>
+          <td>${u.phone || "—"}</td>
+          <td><input type="number" value="${a.commissionRate}" min="0" max="100" style="width:60px" id="rate_${a._id}" /></td>
+          <td>${fmt(a.walletBalance)}</td>
+          <td>${fmt(a.pendingBalance)}</td>
+          <td>${fmt(a.totalEarned)}</td>
+          <td>${badge(a.status)}</td>
+          <td class="actions">
+            ${a.status === "pending" ? `<button class="success" onclick="approveAff('${a._id}')">Duyệt</button>` : ""}
+            ${a.status === "active" ? `<button class="danger" onclick="suspendAff('${a._id}')">Ngừng</button>` : ""}
+            ${a.status === "suspended" ? `<button class="success" onclick="approveAff('${a._id}')">Kích hoạt</button>` : ""}
+            <button class="secondary" onclick="setRate('${a._id}')">Lưu %</button>
+          </td>
+        </tr>`;
+          })
+          .join("");
+        document.getElementById("affPagination").innerHTML = paginationHtml(
+          d.page,
+          d.totalPages,
+          "loadAffiliates",
+        );
+      }
+
+      async function approveAff(id) {
+        await fetch(`${API}/admin/affiliates/${id}/approve`, {
+          method: "PATCH",
+          headers: h(),
+        });
+        showMsg("Đã phê duyệt!", true);
+        loadAffiliates();
+      }
+      async function suspendAff(id) {
+        await fetch(`${API}/admin/affiliates/${id}/suspend`, {
+          method: "PATCH",
+          headers: h(),
+        });
+        showMsg("Đã tạm ngừng.", true);
+        loadAffiliates();
+      }
+      async function setRate(id) {
+        const val = document.getElementById("rate_" + id).value;
+        const r = await fetch(`${API}/admin/affiliates/${id}/commission-rate`, {
+          method: "PATCH",
+          headers: h(),
+          body: JSON.stringify({ commissionRate: Number(val) }),
+        });
+        if (r.ok) showMsg("Đã cập nhật tỷ lệ!", true);
+        else showMsg("Lỗi cập nhật", false);
+        loadAffiliates();
+      }
+
+      // ── Withdrawals ──
+      let wdPage = 1;
+      async function loadWithdrawals(page) {
+        if (page) wdPage = page;
+        const status = document.getElementById("wdStatusFilter").value;
+        const qs = `page=${wdPage}&limit=10${status ? "&status=" + status : ""}`;
+        const r = await fetch(`${API}/admin/affiliates/withdrawals?${qs}`, {
+          headers: h(),
+        });
+        const d = await r.json();
+        document.getElementById("wdBody").innerHTML = d.items
+          .map((w) => {
+            const u = w.affiliateId?.userId || {};
+            return `<tr>
+          <td>${u.fullName || "—"} (${u.email || ""})</td>
+          <td>${fmt(w.amount)}</td>
+          <td>${badge(w.status)}</td>
+          <td>${new Date(w.createdAt).toLocaleDateString("vi-VN")}</td>
+          <td class="actions">
+            ${
+              w.status === "pending"
+                ? `
+              <button class="success" onclick="approveWd('${w._id}')">Duyệt</button>
+              <button class="danger" onclick="rejectWd('${w._id}')">Từ chối</button>
+            `
+                : "—"
+            }
+          </td>
+        </tr>`;
+          })
+          .join("");
+        document.getElementById("wdPagination").innerHTML = paginationHtml(
+          d.page,
+          d.totalPages,
+          "loadWithdrawals",
+        );
+      }
+
+      async function approveWd(id) {
+        await fetch(`${API}/admin/affiliates/withdrawals/${id}/approve`, {
+          method: "PATCH",
+          headers: h(),
+        });
+        showMsg("Đã duyệt rút tiền!", true);
+        loadWithdrawals();
+      }
+      async function rejectWd(id) {
+        const note = prompt("Lý do từ chối:");
+        await fetch(`${API}/admin/affiliates/withdrawals/${id}/reject`, {
+          method: "PATCH",
+          headers: h(),
+          body: JSON.stringify({ note: note || "" }),
+        });
+        showMsg("Đã từ chối.", true);
+        loadWithdrawals();
+      }
+
+      // ── Commissions ──
+      let commPage = 1;
+      async function loadCommissions(page) {
+        if (page) commPage = page;
+        const r = await fetch(
+          `${API}/admin/affiliates/commissions?page=${commPage}&limit=15`,
+          { headers: h() },
+        );
+        const d = await r.json();
+        document.getElementById("commBody").innerHTML = d.items
+          .map((c) => {
+            const u = c.affiliateId?.userId || {};
+            return `<tr>
+          <td>${u.fullName || "—"}</td>
+          <td>${c.orderNumber || "—"}</td>
+          <td>${c.rate}%</td>
+          <td>${fmt(c.amount)}</td>
+          <td>${badge(c.status)}</td>
+          <td>${new Date(c.createdAt).toLocaleDateString("vi-VN")}</td>
+        </tr>`;
+          })
+          .join("");
+        document.getElementById("commPagination").innerHTML = paginationHtml(
+          d.page,
+          d.totalPages,
+          "loadCommissions",
+        );
+      }
+
+      // ── pagination helper ──
+      function paginationHtml(page, total, fn) {
+        if (total <= 1) return "";
+        let html = "";
+        if (page > 1)
+          html += `<button class="secondary" onclick="${fn}(${page - 1})">← Trước</button> `;
+        html += `<span style="color:#888;font-size:0.8rem"> Trang ${page}/${total} </span>`;
+        if (page < total)
+          html += ` <button class="secondary" onclick="${fn}(${page + 1})">Sau →</button>`;
+        return html;
+      }
+
+      // ── Init ──
+      if (!getKey()) {
+        window.location.href = "/admin/";
+      } else {
+        loadAffiliates();
+        loadWithdrawals();
+        loadCommissions();
+      }
+    </script>
+  </body>
+</html>
