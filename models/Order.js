@@ -39,6 +39,8 @@ const schema = new mongoose.Schema(
     shippingAddress: { type: shippingAddressSchema, required: true },
     subtotal: { type: Number, default: 0 },
     shippingFee: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
+    referralCode: String,
     status: { type: String, default: "pending" },
     note: String,
   },

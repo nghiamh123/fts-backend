@@ -38,11 +38,9 @@ router.post("/", async (req, res) => {
     }
     const { fullName, phone, address, city, district, ward } = shippingAddress;
     if (!fullName || !phone || !address) {
-      return res
-        .status(400)
-        .json({
-          message: "shippingAddress must have fullName, phone, address",
-        });
+      return res.status(400).json({
+        message: "shippingAddress must have fullName, phone, address",
+      });
     }
 
     let subtotal = items.reduce(
@@ -54,31 +52,57 @@ router.post("/", async (req, res) => {
     // ── Referral Code Discount ──────────────────────────────────────────
     if (referralCode && userId) {
       const config = await ReferralConfig.getConfig();
-      if (config.isActive) {
-        const referrer = await User.findOne({
-          referralCode: referralCode.toUpperCase(),
-        });
-
-        // Prevent self-referral
-        if (referrer && referrer._id.toString() !== userId) {
-          // Check if this user already used a referral code
-          const alreadyUsed = await ReferralUsage.findOne({
-            usedByUserId: userId,
-          });
-          if (!alreadyUsed && subtotal >= config.minOrderAmount) {
-            if (config.discountType === "percent") {
-              discount = Math.round(subtotal * (config.discountValue / 100));
-            } else {
-              discount = config.discountValue;
-            }
-            discount = Math.min(discount, subtotal); // never exceed subtotal
-          }
-        }
+      if (!config.isActive) {
+        return res
+          .status(400)
+          .json({ message: "Chương trình giới thiệu hiện đang tạm ngưng" });
       }
+
+      const referrer = await User.findOne({
+        referralCode: referralCode.toUpperCase(),
+      });
+
+      if (!referrer) {
+        return res.status(400).json({ message: "Mã giới thiệu không tồn tại" });
+      }
+
+      // Prevent self-referral
+      if (referrer._id.toString() === userId) {
+        return res
+          .status(400)
+          .json({ message: "Bạn không thể tự giới thiệu chính mình" });
+      }
+
+      // Check if this user already used a referral code
+      const alreadyUsed = await ReferralUsage.findOne({
+        usedByUserId: userId,
+      });
+
+      if (alreadyUsed) {
+        return res
+          .status(400)
+          .json({ message: "Bạn đã từng sử dụng mã giới thiệu trước đây rồi" });
+      }
+
+      if (subtotal < config.minOrderAmount) {
+        return res
+          .status(400)
+          .json({
+            message: `Đơn hàng tối thiểu để áp dụng mã là ${config.minOrderAmount.toLocaleString("vi-VN")}đ`,
+          });
+      }
+
+      if (config.discountType === "percent") {
+        discount = Math.round(subtotal * (config.discountValue / 100));
+      } else {
+        discount = config.discountValue;
+      }
+      discount = Math.min(discount, subtotal); // never exceed subtotal
     }
 
-    subtotal = subtotal - discount;
-    const shippingFee = subtotal >= 500000 ? 0 : 30000;
+    // subtotal = subtotal - discount; // Do NOT mutate subtotal, calculate total instead
+    const totalAmount = subtotal - discount;
+    const shippingFee = totalAmount >= 500000 ? 0 : 30000;
     const orderNumber = await getNextOrderNumber();
 
     const order = await Order.create({
@@ -89,6 +113,9 @@ router.post("/", async (req, res) => {
       shippingAddress: { fullName, phone, address, city, district, ward },
       subtotal,
       shippingFee,
+      discount,
+      referralCode:
+        discount > 0 && referralCode ? referralCode.toUpperCase() : undefined,
       note: note || undefined,
     });
 
@@ -119,7 +146,7 @@ router.post("/", async (req, res) => {
         // Prevent self-commission: affiliate user cannot earn from own orders
         if (!userId || affiliate.userId.toString() !== userId) {
           const commissionAmount = Math.round(
-            (subtotal + discount) * (affiliate.commissionRate / 100),
+            (subtotal - discount) * (affiliate.commissionRate / 100),
           );
 
           const commission = await AffiliateCommission.create({
