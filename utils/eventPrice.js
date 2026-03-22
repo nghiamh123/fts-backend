@@ -8,12 +8,10 @@ export function computeEventPrice(product) {
   }
 
   const now = new Date();
-  const isActive =
-    event.isActive &&
-    new Date(event.startDate) <= now &&
-    new Date(event.endDate) >= now;
+  const started = new Date(event.startDate) <= now;
+  const ended = new Date(event.endDate) < now;
 
-  if (!isActive) {
+  if (!event.isActive || ended) {
     p.finalPrice = p.price;
     p.eventDiscount = null;
     return p;
@@ -26,14 +24,29 @@ export function computeEventPrice(product) {
     discountedPrice = Math.max(0, p.price - event.discountValue);
   }
 
-  p.finalPrice = discountedPrice;
-  p.eventDiscount = {
-    eventId: event._id,
-    eventName: event.name,
-    discountType: event.discountType,
-    discountValue: event.discountValue,
-    originalPrice: p.price,
-  };
+  if (started) {
+    p.finalPrice = discountedPrice;
+    p.eventDiscount = {
+      eventId: event._id,
+      eventName: event.name,
+      discountType: event.discountType,
+      discountValue: event.discountValue,
+      originalPrice: p.price,
+      status: "active",
+    };
+  } else {
+    p.finalPrice = p.price;
+    p.eventDiscount = {
+      eventId: event._id,
+      eventName: event.name,
+      discountType: event.discountType,
+      discountValue: event.discountValue,
+      originalPrice: p.price,
+      status: "upcoming",
+      startDate: event.startDate,
+      discountedPrice,
+    };
+  }
 
   return p;
 }

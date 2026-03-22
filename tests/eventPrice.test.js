@@ -38,12 +38,14 @@ describe("computeEventPrice", () => {
     };
     const result = computeEventPrice(product);
     assert.equal(result.finalPrice, 400000);
+    assert.equal(result.eventDiscount.status, "active");
     assert.deepEqual(result.eventDiscount, {
       eventId: "e1",
       eventName: "Sale He",
       discountType: "percent",
       discountValue: 20,
       originalPrice: 500000,
+      status: "active",
     });
   });
 
@@ -103,7 +105,7 @@ describe("computeEventPrice", () => {
     assert.equal(result.eventDiscount, null);
   });
 
-  it("returns original price when event has not started yet", () => {
+  it("returns original price with upcoming status when event has not started yet", () => {
     const product = {
       _id: "p1",
       price: 500000,
@@ -119,7 +121,9 @@ describe("computeEventPrice", () => {
     };
     const result = computeEventPrice(product);
     assert.equal(result.finalPrice, 500000);
-    assert.equal(result.eventDiscount, null);
+    assert.equal(result.eventDiscount.status, "upcoming");
+    assert.equal(result.eventDiscount.discountedPrice, 350000);
+    assert.equal(result.eventDiscount.startDate, futureDate);
   });
 
   it("returns original price when event has expired", () => {
