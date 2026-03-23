@@ -181,12 +181,12 @@ router.get("/products", requireAffiliate, async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [products, total] = await Promise.all([
-      Product.find({ inStock: true })
-        .sort({ createdAt: -1 })
+      Product.find()
+        .sort({ isSoldOut: 1, inStock: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Product.countDocuments({ inStock: true }),
+      Product.countDocuments(),
     ]);
 
     // Attach affiliate link to each product
