@@ -8,6 +8,8 @@ import { ReferralUsage } from "../models/ReferralUsage.js";
 import { ReferralConfig } from "../models/ReferralConfig.js";
 import { WalletTransaction } from "../models/WalletTransaction.js";
 import { computeEventPrice } from "../utils/eventPrice.js";
+import { sendMail } from "../utils/mailer.js";
+import { buildNewOrderEmailHtml } from "../utils/orderEmailTemplate.js";
 
 const router = Router();
 
@@ -195,6 +197,16 @@ router.post("/", async (req, res) => {
           });
         }
       }
+    }
+
+    // Send email notification to admin (non-blocking)
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER;
+    if (adminEmail) {
+      sendMail({
+        to: adminEmail,
+        subject: `[ĐƠN HÀNG MỚI] ${orderNumber} - ${shippingAddress.fullName}`,
+        html: buildNewOrderEmailHtml(order.toObject()),
+      }).catch((err) => console.error("[Mailer] Failed to send order email:", err.message));
     }
 
     res.status(201).json({ ...order.toObject(), discount });
