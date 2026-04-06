@@ -16,6 +16,12 @@ function slugify(text) {
     .slice(0, 80);
 }
 
+/** Đếm số từ từ nội dung HTML (strip tags trước) */
+function countWordsFromHtml(html) {
+  const plainText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return plainText.split(" ").filter(Boolean).length;
+}
+
 export async function runBlogCrawl({ limit = 3, status = "draft" } = {}) {
   const results = { created: 0, skipped: 0, errors: [] };
 
@@ -45,22 +51,23 @@ export async function runBlogCrawl({ limit = 3, status = "draft" } = {}) {
       const slug =
         slugify(rewritten.title) + "-" + Date.now().toString(36);
 
+      // Nối nguồn tham khảo bằng HTML (không dùng Markdown)
+      const sourceHtml = `<hr><p><em>Nguồn tham khảo: <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.source}</a></em></p>`;
+      const fullContent = rewritten.content + sourceHtml;
+
+      const wordCount = countWordsFromHtml(fullContent);
+
       await Blog.create({
         title: rewritten.title,
         slug,
         excerpt: rewritten.excerpt,
-        content:
-          rewritten.content +
-          `\n\n---\n*Nguồn tham khảo: [${item.source}](${item.link})*`,
+        content: fullContent,
         thumbnail: item.thumbnail || undefined,
         ogImage: item.thumbnail || undefined,
         status,
         metaTitle: rewritten.metaTitle,
         metaDescription: rewritten.metaDescription,
-        readingTime: Math.max(
-          1,
-          Math.ceil(rewritten.content.split(/\s+/).length / 200),
-        ),
+        readingTime: Math.max(1, Math.ceil(wordCount / 200)),
       });
 
       results.created++;

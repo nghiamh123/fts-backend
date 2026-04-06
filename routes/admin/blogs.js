@@ -107,18 +107,33 @@ router.delete("/:id", requireAdmin, async (req, res) => {
     const imagesToDelete = [];
     if (blog.thumbnail) imagesToDelete.push(blog.thumbnail);
     if (blog.ogImage) imagesToDelete.push(blog.ogImage);
+    if (blog.bannerImage) imagesToDelete.push(blog.bannerImage);
 
-    // Regex to match Markdown image URLs: ![alt](url)
     if (blog.content) {
-      const regex = /!\[.*?\]\((.*?)\)/g;
+      // Regex cho ảnh Markdown cũ: ![alt](url)
+      const mdImageRegex = /!\[.*?\]\((.*?)\)/g;
       let match;
-      while ((match = regex.exec(blog.content)) !== null) {
+      while ((match = mdImageRegex.exec(blog.content)) !== null) {
+        imagesToDelete.push(match[1]);
+      }
+
+      // Regex cho ảnh HTML mới từ Quill: <img src="url">
+      const htmlImageRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+      while ((match = htmlImageRegex.exec(blog.content)) !== null) {
         imagesToDelete.push(match[1]);
       }
     }
 
+    // Chỉ xóa ảnh nằm trên R2 của mình (tránh xóa ảnh external)
+    const r2BaseUrl = process.env.R2_PUBLIC_URL || "";
+    const ownImages = r2BaseUrl
+      ? imagesToDelete.filter((url) => url.startsWith(r2BaseUrl))
+      : imagesToDelete;
+
     // Call S3 Batch Delete
-    await deleteR2Objects(imagesToDelete);
+    if (ownImages.length > 0) {
+      await deleteR2Objects(ownImages);
+    }
 
     // Finally delete document
     await Blog.deleteOne({ _id: blog._id });
