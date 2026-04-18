@@ -26,6 +26,7 @@ import adminReferrals from "./routes/admin/referrals.js";
 import adminStats from "./routes/admin/stats.js";
 import adminEvents from "./routes/admin/events.js";
 import adminBlogCrawl from "./routes/admin/blog-crawl.js";
+import adminAiWriter from "./routes/admin/ai-writer.js";
 import blogs from "./routes/blogs.js";
 import events from "./routes/events.js";
 
@@ -60,6 +61,7 @@ app.use("/admin/users", adminUsers);
 app.use("/admin/stats", adminStats);
 app.use("/admin/events", adminEvents);
 app.use("/admin/blog-crawl", adminBlogCrawl);
+app.use("/admin/ai-writer", adminAiWriter);
 app.use("/blogs", blogs);
 app.use("/events", events);
 app.use("/admin", express.static("admin"));
