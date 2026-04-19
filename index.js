@@ -27,15 +27,29 @@ import adminStats from "./routes/admin/stats.js";
 import adminEvents from "./routes/admin/events.js";
 import adminBlogCrawl from "./routes/admin/blog-crawl.js";
 import adminAiWriter from "./routes/admin/ai-writer.js";
+import adminMedia from "./routes/admin/media.js";
 import blogs from "./routes/blogs.js";
 import events from "./routes/events.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:3000")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 app.use(helmet());
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 app.use("/categories", categories);
@@ -62,6 +76,7 @@ app.use("/admin/stats", adminStats);
 app.use("/admin/events", adminEvents);
 app.use("/admin/blog-crawl", adminBlogCrawl);
 app.use("/admin/ai-writer", adminAiWriter);
+app.use("/admin/media", adminMedia);
 app.use("/blogs", blogs);
 app.use("/events", events);
 app.use("/admin", express.static("admin"));
