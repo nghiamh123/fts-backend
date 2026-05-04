@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { User } from "../../models/User.js";
 import { Affiliate } from "../../models/Affiliate.js";
+import { hashPassword } from "../../utils/auth.js";
 
 const router = Router();
 router.use(requireAdmin);
@@ -77,6 +78,61 @@ router.get("/", async (req, res) => {
       total,
       page,
       totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/", async (req, res) => {
+  try {
+    const { email, password, fullName, phone, role } = req.body || {};
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+    const normalizedRole = String(role || "marketing").trim().toLowerCase();
+
+    if (!normalizedEmail || !password || !fullName) {
+      return res.status(400).json({
+        message: "Email, password and fullName are required",
+      });
+    }
+
+    if (String(password).length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
+    }
+
+    if (normalizedRole !== "marketing") {
+      return res.status(400).json({
+        message: "Only marketing accounts can be created from this screen",
+      });
+    }
+
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    const user = await User.create({
+      email: normalizedEmail,
+      passwordHash: hashPassword(password),
+      fullName: String(fullName).trim(),
+      phone: phone ? String(phone).trim() : undefined,
+      role: normalizedRole,
+    });
+
+    res.status(201).json({
+      user: {
+        _id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        phone: user.phone,
+        role: user.role,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

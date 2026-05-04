@@ -30,6 +30,7 @@ import adminAiWriter from "./routes/admin/ai-writer.js";
 import adminMedia from "./routes/admin/media.js";
 import blogs from "./routes/blogs.js";
 import events from "./routes/events.js";
+import { requireAdminPermission } from "./middleware/requireAdmin.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -60,23 +61,63 @@ app.use("/orders", orders);
 app.use("/affiliates", affiliates);
 app.use("/referrals", referrals);
 app.use("/admin/auth", adminAuth);
-app.use("/admin/categories", adminCategories);
-app.use("/admin/products", adminProducts);
-app.use("/admin/orders", adminOrders);
-app.use("/admin/upload", adminUpload);
-app.use("/admin/templates", adminTemplates);
-app.use("/admin/authors", adminAuthors);
-app.use("/admin/blog-categories", adminBlogCategories);
-app.use("/admin/blogs", adminBlogs);
-app.use("/admin/tags", adminTags);
-app.use("/admin/affiliates", adminAffiliates);
-app.use("/admin/referrals", adminReferrals);
-app.use("/admin/users", adminUsers);
-app.use("/admin/stats", adminStats);
-app.use("/admin/events", adminEvents);
-app.use("/admin/blog-crawl", adminBlogCrawl);
-app.use("/admin/ai-writer", adminAiWriter);
-app.use("/admin/media", adminMedia);
+app.use(
+  "/admin/categories",
+  requireAdminPermission("catalog:manage"),
+  adminCategories,
+);
+app.use(
+  "/admin/products",
+  requireAdminPermission("catalog:manage"),
+  adminProducts,
+);
+app.use(
+  "/admin/orders",
+  requireAdminPermission("orders:manage"),
+  adminOrders,
+);
+app.use(
+  "/admin/upload",
+  requireAdminPermission("content:write"),
+  adminUpload,
+);
+app.use(
+  "/admin/templates",
+  requireAdminPermission("catalog:manage"),
+  adminTemplates,
+);
+app.use(
+  "/admin/authors",
+  requireAdminPermission("content:write"),
+  adminAuthors,
+);
+app.use(
+  "/admin/blog-categories",
+  requireAdminPermission("content:write"),
+  adminBlogCategories,
+);
+app.use("/admin/blogs", requireAdminPermission("content:write"), adminBlogs);
+app.use("/admin/tags", requireAdminPermission("content:write"), adminTags);
+app.use(
+  "/admin/affiliates",
+  requireAdminPermission("affiliates:manage"),
+  adminAffiliates,
+);
+app.use(
+  "/admin/referrals",
+  requireAdminPermission("referrals:manage"),
+  adminReferrals,
+);
+app.use("/admin/users", requireAdminPermission("users:manage"), adminUsers);
+app.use("/admin/stats", requireAdminPermission("reports:view"), adminStats);
+app.use(
+  "/admin/events",
+  requireAdminPermission("catalog:manage"),
+  adminEvents,
+);
+app.use("/admin/blog-crawl", requireAdminPermission("ai:use"), adminBlogCrawl);
+app.use("/admin/ai-writer", requireAdminPermission("ai:use"), adminAiWriter);
+app.use("/admin/media", requireAdminPermission("content:write"), adminMedia);
 app.use("/blogs", blogs);
 app.use("/events", events);
 app.use("/admin", express.static("admin"));

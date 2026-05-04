@@ -1,7 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import sharp from "sharp";
-import { requireAdmin } from "../../middleware/requireAdmin.js";
+import {
+  hasAdminPermission,
+  requireAdmin,
+} from "../../middleware/requireAdmin.js";
 import {
   r2Client,
   R2_BUCKET,
@@ -24,6 +27,7 @@ const ALLOWED_TYPES = [
   "image/bmp",
 ];
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB raw input
+const MARKETING_UPLOAD_FOLDERS = new Set(["blogs", "media", "authors"]);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -63,6 +67,15 @@ router.post("/", upload.single("file"), async (req, res) => {
     }
 
     const folder = (req.query.folder || "media").replace(/[^a-zA-Z0-9_-]/g, "");
+    if (
+      !hasAdminPermission(req.adminAuth, "*") &&
+      !MARKETING_UPLOAD_FOLDERS.has(folder)
+    ) {
+      return res.status(403).json({
+        message: "Marketing accounts can only upload content media",
+      });
+    }
+
     const maxWidth = parseInt(req.query.maxWidth) || 0;
     const rawCustomName = (req.query.customName || "").trim();
     const originalName = req.file.originalname.replace(/\.[^.]+$/, "");

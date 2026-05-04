@@ -1,9 +1,36 @@
 import express from "express";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import Blog from "../../models/Blog.js";
+import Author from "../../models/Author.js";
 import { deleteR2Objects } from "../../config/cloudflare-r2.js";
 
 const router = express.Router();
+
+async function ensureMarketingAuthor(req) {
+  const adminUser = req.adminAuth?.user;
+  if (!adminUser || adminUser.role !== "marketing") {
+    return null;
+  }
+
+  const author = await Author.findOneAndUpdate(
+    { sourceUserId: adminUser._id },
+    {
+      $set: {
+        name: adminUser.fullName,
+      },
+      $setOnInsert: {
+        sourceUserId: adminUser._id,
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
+  return author;
+}
 
 router.get("/", requireAdmin, async (req, res) => {
   try {
@@ -58,6 +85,11 @@ router.get("/:id", requireAdmin, async (req, res) => {
 
 router.post("/", requireAdmin, async (req, res) => {
   try {
+    const marketingAuthor = await ensureMarketingAuthor(req);
+    if (marketingAuthor) {
+      req.body.authorId = marketingAuthor._id;
+    }
+
     const blog = new Blog(req.body);
     if (blog.status === "published" && !blog.publishedAt) {
       blog.publishedAt = new Date();
@@ -76,6 +108,11 @@ router.put("/:id", requireAdmin, async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ message: "Blog not found" });
+
+    const marketingAuthor = await ensureMarketingAuthor(req);
+    if (marketingAuthor) {
+      req.body.authorId = marketingAuthor._id;
+    }
 
     // Handle publishedAt
     if (

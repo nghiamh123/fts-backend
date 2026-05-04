@@ -13,6 +13,12 @@ const authorSchema = new mongoose.Schema(
     bio: {
       type: String,
     },
+    sourceUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+      sparse: true,
+    },
   },
   { timestamps: true },
 );
